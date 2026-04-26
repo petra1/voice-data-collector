@@ -141,24 +141,38 @@ async function stopRecording() {
   setStatus("Recording stopped. Preview and save as WAV.");
 }
 
-function saveRecording() {
+async function saveRecording() {
   if (!currentWavBlob) {
     return;
   }
 
   const fileName = buildFileName();
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(currentWavBlob);
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const bytes = await currentWavBlob.arrayBuffer();
+
+  try {
+    const response = await fetch("/api/save-wav", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "X-Filename": fileName,
+      },
+      body: bytes,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Failed to save on local server.");
+    }
+  } catch (error) {
+    setStatus(`Save failed: ${error.message}`);
+    return;
+  }
 
   savedCounter += 1;
   const li = document.createElement("li");
-  li.textContent = `${savedCounter}. ${fileName}`;
+  li.textContent = `${savedCounter}. wav/${fileName}`;
   savedListEl.appendChild(li);
-  setStatus(`Saved ${fileName}`);
+  setStatus(`Saved locally to wav/${fileName}`);
 }
 
 function discardRecording() {
