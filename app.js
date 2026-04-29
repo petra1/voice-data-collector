@@ -5,6 +5,8 @@ const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
 const saveBtn = document.getElementById("saveBtn");
 const discardBtn = document.getElementById("discardBtn");
+const uploadBtn = document.getElementById("uploadBtn");
+const textFileInput = document.getElementById("textFileInput");
 const statusEl = document.getElementById("status");
 const previewEl = document.getElementById("preview");
 const savedListEl = document.getElementById("savedList");
@@ -17,13 +19,23 @@ let recordedChunks = [];
 let recordingSampleRate = 44100;
 let currentWavBlob = null;
 let savedCounter = 0;
+let uploadedSentences = [];
+let currentSentenceIndex = -1;
 
 function setStatus(message) {
   statusEl.textContent = message;
 }
 
+function hasActiveSentence() {
+  return (
+    currentSentenceIndex >= 0 &&
+    currentSentenceIndex < uploadedSentences.length &&
+    uploadedSentences.length > 0
+  );
+}
+
 function setButtons({ isRecording, hasRecording }) {
-  startBtn.disabled = isRecording;
+  startBtn.disabled = isRecording || !hasActiveSentence();
   stopBtn.disabled = !isRecording;
   saveBtn.disabled = !hasRecording;
   discardBtn.disabled = !hasRecording;
@@ -43,6 +55,109 @@ function buildFileName() {
   const prompt = sanitize(promptTextInput.value || "utterance");
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   return `${speaker}__${session}__${prompt}__${stamp}.wav`;
+}
+
+function setCurrentSentence() {
+  if (hasActiveSentence()) {
+    promptTextInput.value = uploadedSentences[currentSentenceIndex];
+    return;
+  }
+
+  if (uploadedSentences.length > 0 && currentSentenceIndex >= uploadedSentences.length) {
+    promptTextInput.value = "All sentences have been recorded.";
+    setStatus("All sentences have been recorded.");
+    return;
+  }
+
+  promptTextInput.value = "";
+}
+
+function splitSentences(rawText) {
+  return rawText
+    .split(/\r\n|\n|\r/g)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+function decodeUploadedText(arrayBuffer) {
+  const decoders = [
+    { encoding: "utf-8", fatal: true },
+    { encoding: "utf-16le", fatal: true },
+    { encoding: "utf-16be", fatal: true },
+    { encoding: "windows-1252", fatal: false },
+    { encoding: "iso-8859-1", fatal: false },
+    { encoding: "macintosh", fatal: false },
+  ];
+
+  for (const decoderOptions of decoders) {
+    try {
+      const decoder = new TextDecoder(decoderOptions.encoding, {
+        fatal: decoderOptions.fatal,
+      });
+      const text = decoder.decode(arrayBuffer);
+      if (text && text.replace(/\uFFFD/g, "").trim().length > 0) {
+        return text;
+      }
+    } catch (error) {
+      // Try the next decoder.
+    }
+  }
+
+  return new TextDecoder("utf-8").decode(arrayBuffer);
+}
+
+async function saveTextFileLocally(file) {
+  const bytes = await file.arrayBuffer();
+  const response = await fetch("/api/save-text", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/octet-stream",
+      "X-Filename": file.name || "sentences.txt",
+    },
+    body: bytes,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to save text file on local server.");
+  }
+}
+
+async function handleFileSelection(event) {
+  const [file] = event.target.files || [];
+  if (!file) {
+    return;
+  }
+
+  try {
+    await saveTextFileLocally(file);
+    const rawBytes = await file.arrayBuffer();
+    const decodedText = decodeUploadedText(rawBytes);
+    const sentences = splitSentences(decodedText);
+
+    if (sentences.length === 0) {
+      setStatus("No valid sentences found in uploaded file.");
+      uploadedSentences = [];
+      currentSentenceIndex = -1;
+      setCurrentSentence();
+      setButtons({ isRecording: false, hasRecording: false });
+      return;
+    }
+
+    uploadedSentences = sentences;
+    currentSentenceIndex = 0;
+    currentWavBlob = null;
+    recordedChunks = [];
+    previewEl.removeAttribute("src");
+    previewEl.load();
+    setCurrentSentence();
+    setStatus(`Loaded ${sentences.length} sentence(s).`);
+    setButtons({ isRecording: false, hasRecording: false });
+  } catch (error) {
+    setStatus(`Text file upload failed: ${error.message}`);
+  } finally {
+    textFileInput.value = "";
+  }
 }
 
 function mergeFloat32(chunks) {
@@ -173,6 +288,14 @@ async function saveRecording() {
   li.textContent = `${savedCounter}. wav/${fileName}`;
   savedListEl.appendChild(li);
   setStatus(`Saved locally to wav/${fileName}`);
+
+  currentWavBlob = null;
+  recordedChunks = [];
+  previewEl.removeAttribute("src");
+  previewEl.load();
+  currentSentenceIndex += 1;
+  setCurrentSentence();
+  setButtons({ isRecording: false, hasRecording: false });
 }
 
 function discardRecording() {
@@ -188,5 +311,8 @@ startBtn.addEventListener("click", startRecording);
 stopBtn.addEventListener("click", stopRecording);
 saveBtn.addEventListener("click", saveRecording);
 discardBtn.addEventListener("click", discardRecording);
+uploadBtn.addEventListener("click", () => textFileInput.click());
+textFileInput.addEventListener("change", handleFileSelection);
 
 setButtons({ isRecording: false, hasRecording: false });
+setCurrentSentence();

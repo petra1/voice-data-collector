@@ -23,11 +23,12 @@
           <label for="sessionId">Session ID</label>
           <input id="sessionId" type="text" placeholder="e.g. 2026-04-26-am" />
 
-          <label for="promptText">Prompt / Sentence</label>
+          <label for="promptText">Sentence</label>
           <textarea
             id="promptText"
             rows="3"
-            placeholder="Type the sentence Petra should speak."
+            placeholder="Upload a text file to load sentences."
+            readonly
           ></textarea>
         </div>
       </section>
@@ -39,6 +40,8 @@
           <button id="stopBtn" type="button" disabled>Stop</button>
           <button id="saveBtn" type="button" disabled>Save WAV</button>
           <button id="discardBtn" type="button" disabled>Discard</button>
+          <button id="uploadBtn" type="button">Upload Text File</button>
+          <input id="textFileInput" type="file" accept=".txt,text/plain" hidden />
         </div>
         <p id="status" role="status" aria-live="polite">
           Ready. Allow microphone access to start.

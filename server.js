@@ -6,6 +6,7 @@ const host = "127.0.0.1";
 const port = Number(process.env.PORT || 8080);
 const rootDir = __dirname;
 const wavDir = path.join(rootDir, "wav");
+const textDir = path.join(rootDir, "text");
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -18,18 +19,21 @@ const mimeTypes = {
 if (!fs.existsSync(wavDir)) {
   fs.mkdirSync(wavDir, { recursive: true });
 }
+if (!fs.existsSync(textDir)) {
+  fs.mkdirSync(textDir, { recursive: true });
+}
 
-function safeName(rawName) {
-  const name = String(rawName || "recording.wav")
+function safeName(rawName, fallback, ext) {
+  const base = String(rawName || fallback)
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  if (!name.endsWith(".wav")) {
-    return `${name || "recording"}.wav`;
+  if (!base.endsWith(ext)) {
+    return `${base || fallback}${ext}`;
   }
 
-  return name || "recording.wav";
+  return base || `${fallback}${ext}`;
 }
 
 function serveStatic(req, res) {
@@ -59,7 +63,7 @@ function serveStatic(req, res) {
 }
 
 function handleSaveWav(req, res) {
-  const filename = safeName(req.headers["x-filename"]);
+  const filename = safeName(req.headers["x-filename"], "recording", ".wav");
   const outputPath = path.join(wavDir, filename);
   const chunks = [];
   let size = 0;
@@ -92,9 +96,47 @@ function handleSaveWav(req, res) {
   });
 }
 
+function handleSaveText(req, res) {
+  const filename = safeName(req.headers["x-filename"], "sentences", ".txt");
+  const outputPath = path.join(textDir, filename);
+  const chunks = [];
+  let size = 0;
+
+  req.on("data", (chunk) => {
+    chunks.push(chunk);
+    size += chunk.length;
+    if (size > 5 * 1024 * 1024) {
+      req.destroy();
+    }
+  });
+
+  req.on("end", () => {
+    const data = Buffer.concat(chunks);
+    fs.writeFile(outputPath, data, (err) => {
+      if (err) {
+        res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("Could not save text file");
+        return;
+      }
+
+      res.writeHead(201, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ ok: true, path: `text/${filename}` }));
+    });
+  });
+
+  req.on("error", () => {
+    res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("Invalid upload");
+  });
+}
+
 const server = http.createServer((req, res) => {
   if (req.method === "POST" && req.url === "/api/save-wav") {
     handleSaveWav(req, res);
+    return;
+  }
+  if (req.method === "POST" && req.url === "/api/save-text") {
+    handleSaveText(req, res);
     return;
   }
 
@@ -110,4 +152,5 @@ const server = http.createServer((req, res) => {
 server.listen(port, host, () => {
   console.log(`Voice collector running on http://${host}:${port}`);
   console.log(`Local WAV storage: ${wavDir}`);
+  console.log(`Local text storage: ${textDir}`);
 });
