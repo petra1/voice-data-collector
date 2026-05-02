@@ -78,6 +78,7 @@ function handleSaveWav(req, res) {
 
   req.on("end", () => {
     const data = Buffer.concat(chunks);
+
     fs.writeFile(outputPath, data, (err) => {
       if (err) {
         res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });

@@ -6,12 +6,13 @@ Simple local web app to record voice samples and save `.wav` files into a local
 ## Features
 
 - Accessible, keyboard-friendly form and controls
-- Upload a `.txt` file and load one sentence at a time into a read-only prompt field
-- Metadata fields (`speaker`, `session`, `prompt`) included in generated WAV filename
+- Upload a `.txt` file and step through sentences in a read-only **Sentence** field (one line per utterance)
+- WAV filenames combine **Speaker ID**, **Session ID**, and a short slug from the current sentence plus a timestamp
 - Records microphone audio and encodes real WAV (PCM 16-bit, mono)
 - Preview, save, or discard each recording before moving to the next sentence
-- Saves audio to local `wav/` and uploaded text files to local `text/` via Node server
-- Local data folders keep generated files out of git
+- **WAV save is minimal on the wire:** the browser sends only the audio bytes and the filename to the local Node server—full sentence text is not sent as metadata and no server-side transcript log is written under `wav/`
+- The same server can store a copy of the uploaded sentences file under local `text/`
+- `wav/` and `text/` each ship a `.gitignore` so recordings and copied lists stay out of Git by default
 
 ## Requirements
 
