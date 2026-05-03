@@ -41,6 +41,15 @@ function setButtons({ isRecording, hasRecording }) {
   discardBtn.disabled = !hasRecording;
 }
 
+function utf8ToBase64(text) {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 function sanitize(value) {
   return value
     .trim()
@@ -262,6 +271,7 @@ async function saveRecording() {
   }
 
   const fileName = buildFileName();
+  const sentenceForContentTxt = promptTextInput.value ?? "";
   const bytes = await currentWavBlob.arrayBuffer();
 
   try {
@@ -270,6 +280,7 @@ async function saveRecording() {
       headers: {
         "Content-Type": "application/octet-stream",
         "X-Filename": fileName,
+        "X-Sentence-B64": utf8ToBase64(sentenceForContentTxt),
       },
       body: bytes,
     });
