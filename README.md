@@ -57,6 +57,25 @@ This creates files in `wav/`, for example:
 
 `wav/petra__2026-04-26-morning__ich-bin-bereit__2026-04-26T13-20-00-000Z.wav`
 
+## Upload a session to the dataset
+
+After a recording session:
+
+```bash
+uv run append_session.py
+```
+
+The script validates the recordings (every file has a transcript in
+`wav/content.txt`; no sentence collides with the frozen validation/test
+splits), skips anything already uploaded, and opens a **pull request** on the
+[HF dataset](https://huggingface.co/datasets/impaired-speech-asr/recordings).
+A teammate reviews the new clips (listen to them via the training repo's
+explore notebook with `revision="refs/pr/<N>"`) and merges in the dataset's
+Community tab — only then does the data reach `main` and become training data.
+
+Requires: [uv](https://docs.astral.sh/uv/), and a HF token with write access
+to the org (`HF_TOKEN` env var or `hf auth login`).
+
 ## Troubleshooting
 
 - **`Cannot connect to localhost:8080`**: ensure `node server.js` is running in this
