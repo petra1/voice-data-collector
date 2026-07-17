@@ -57,6 +57,45 @@ This creates files in `wav/`, for example:
 
 `wav/petra__2026-04-26-morning__ich-bin-bereit__2026-04-26T13-20-00-000Z.wav`
 
+## Upload a session to the dataset
+
+New recordings become training data via a pull request on the
+[HF dataset](https://huggingface.co/datasets/impaired-speech-asr/recordings):
+nothing you upload can break anything — a teammate reviews and merges it first.
+
+1. Install [uv](https://docs.astral.sh/uv/).
+2. Get a Hugging Face account and membership in the
+   [`impaired-speech-asr` org](https://huggingface.co/impaired-speech-asr)
+3. Create an access token: on huggingface.co go to **Settings → Access
+   Tokens → Create new token**, pick **Fine-grained**, and under
+   **Repositories permissions** select the repo
+   `impaired-speech-asr/recordings` and check at least these two:
+   - **"Write access to contents/settings of selected repos"**
+   - **"Interact with discussions / Open pull requests on selected repos"**
+
+   Copy the token (starts with `hf_...`) — it is only shown once.
+4. Make the token available in your terminal:
+
+   ```bash
+   export HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxx   # macOS/Linux
+   ```
+
+   The variable lasts for that terminal window.
+5. Run the upload from this project directory:
+
+   ```bash
+   uv run append_session.py
+   ```
+
+   The script checks everything first (every file has a transcript in
+   `wav/content.txt`, no duplicates, no sentence collides with the frozen
+   validation/test splits), skips anything already uploaded, and prints the
+   pull request URL when done.
+6. Post the PR link in the team chat. Whoever reviews listens to the new
+   clips (training repo's explore notebook, `revision="refs/pr/<N>"`) and
+   merges in the dataset's **Community** tab — only then does the data land
+   in `main` and become training data.
+
 ## Troubleshooting
 
 - **`Cannot connect to localhost:8080`**: ensure `node server.js` is running in this
