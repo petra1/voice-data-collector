@@ -80,6 +80,11 @@ nothing you upload can break anything — a teammate reviews and merges it first
    export HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxx   # macOS/Linux
    ```
 
+   PowerShell for Windows
+   ```
+   $env:HF_TOKEN=‘hf_xxxxxxxxxxxxxxxxxxxx’
+   ```
+
    The variable lasts for that terminal window.
 5. Run the upload from this project directory:
 
