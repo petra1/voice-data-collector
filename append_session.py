@@ -68,6 +68,7 @@ if untranscribed:
 print("loading current dataset state (cached after the first run)...")
 dd = load_dataset(REPO_ID)
 already_uploaded = {name for split in dd.values() for name in split["filename"]}
+existing_train_sentences = set(dd["train"]["text"])
 held_out_sentences = set(dd["validation"]["text"]) | set(dd["test"]["text"])
 
 new_names = sorted(set(wavs) - already_uploaded)
@@ -98,6 +99,16 @@ if leaked:
         f"adding recordings of them to train would corrupt evaluation. "
         f"First: {leaked[0]!r}"
     )
+
+already_in_train = [name for name in new_names if transcripts[name] in existing_train_sentences]
+if already_in_train:
+    print(f"skipping {len(already_in_train)} recording(s) whose transcript already exists in train:")
+    for name in already_in_train:
+        print(f"  {name}: {transcripts[name]!r}")
+    dropped = set(already_in_train)
+    new_names = [n for n in new_names if n not in dropped]
+    if not new_names:
+        sys.exit("Nothing to upload - every new recording transcript already exists in train.")
 
 rows = [
     {
